@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CapLab — Capacitor Discharge Training</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html,body { height:100%; overflow:hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #0a1220;
+  color: white;
+  display: flex; flex-direction: column;
+}
+
+/* ══ TOP BAR ══ */
+#topbar {
+  position:fixed; top:0; left:0; right:0; z-index:40;
+  background:rgba(10,18,32,0.97); border-bottom:1px solid #1e3a5f;
+  backdrop-filter:blur(16px); padding:0 16px;
+}
+.topbar-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0 6px; }
+.logo { display:flex; align-items:center; gap:8px; }
+.pulse-dot { width:8px; height:8px; border-radius:50%; background:#fbbf24; box-shadow:0 0 8px #fbbf24; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(0.82)} }
+.logo-text { font-weight:800; font-size:15px; letter-spacing:.06em; }
+.topbar-right { display:flex; align-items:center; gap:8px; }
+#state-badge { padding:3px 10px; border-radius:9999px; font-size:10px; font-weight:700; font-family:monospace; background:rgba(30,58,95,.9); border:1px solid #2d5a8e; color:#93c5fd; transition:all .3s; }
+#voltage-badge { padding:3px 12px; border-radius:9999px; font-size:13px; font-weight:800; font-family:monospace; background:rgba(180,45,9,.4); color:#fbbf24; border:1px solid #c2410c; transition:all .4s; min-width:70px; text-align:center; }
+#voltage-badge.safe { background:rgba(5,46,22,.5); color:#4ade80; border-color:#15803d; }
+.methods { display:flex; gap:6px; padding-bottom:10px; overflow-x:auto; scrollbar-width:none; }
+.methods::-webkit-scrollbar { display:none; }
+.method-btn { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:6px 14px; border-radius:10px; font-size:12px; font-weight:600; border:none; cursor:pointer; transition:all .18s; background:#1e3a5f; color:#93c5fd; }
+.method-btn:hover { background:#2d5a8e; }
+.method-btn.active { background:#2563eb; color:white; box-shadow:0 4px 16px rgba(37,99,235,.4); }
+
+/* ══ SCORE HUD ══ */
+#score-hud { position:fixed; top:98px; right:14px; z-index:35; background:rgba(10,18,32,.95); border:1px solid #1e3a5f; border-radius:14px; padding:10px 14px; text-align:center; backdrop-filter:blur(8px); min-width:72px; }
+#score-val { font-size:20px; font-weight:900; font-family:monospace; color:#fbbf24; }
+#score-lbl { font-size:8px; color:#475569; font-family:monospace; letter-spacing:.1em; }
+#timer-val { font-size:12px; font-family:monospace; color:#64748b; margin-top:3px; }
+
+/* ══ COACH BUBBLE ══ */
+#coach-bubble { position:fixed; top:110px; left:14px; right:92px; z-index:36; border-radius:16px; padding:12px 36px 12px 14px; border:1px solid; backdrop-filter:blur(12px); display:none; max-width:360px; animation:slideIn .3s cubic-bezier(.34,1.56,.64,1); }
+@keyframes slideIn { from{opacity:0;transform:translateY(-10px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+#coach-bubble.info    { display:block; background:rgba(5,46,22,.9);   border-color:#16a34a; }
+#coach-bubble.tip     { display:block; background:rgba(30,58,138,.9); border-color:#2563eb; }
+#coach-bubble.warning { display:block; background:rgba(120,53,15,.9); border-color:#d97706; }
+#coach-bubble.critical{ display:block; background:rgba(127,29,29,.9); border-color:#dc2626; }
+.coach-sev { font-size:9px; font-weight:800; letter-spacing:.08em; margin-bottom:4px; opacity:.8; }
+.coach-msg { font-size:13px; font-weight:500; line-height:1.45; }
+.coach-hint { font-size:11px; opacity:.7; margin-top:5px; line-height:1.4; }
+.coach-pts { font-size:11px; font-weight:800; margin-top:4px; }
+#coach-x { position:absolute; top:8px; right:10px; background:none; border:none; color:rgba(255,255,255,.4); font-size:16px; cursor:pointer; }
+#coach-x:hover { color:rgba(255,255,255,.8); }
+
+/* ══ ERROR OVERLAY ══ */
+#err-overlay { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; padding:24px; }
+#err-overlay.show { display:flex; }
+.err-card { background:#0a1628; border:2px solid #dc2626; border-radius:24px; padding:28px 24px; max-width:360px; width:100%; text-align:center; box-shadow:0 0 80px rgba(220,38,38,.2); animation:slideIn .35s cubic-bezier(.34,1.56,.64,1); }
+.err-icon { font-size:48px; margin-bottom:14px; }
+.err-title { font-size:17px; font-weight:800; color:#fca5a5; margin-bottom:8px; }
+.err-msg { font-size:14px; color:#cbd5e1; margin-bottom:8px; line-height:1.5; }
+.err-hint { font-size:12px; color:#fbbf24; margin-bottom:24px; line-height:1.4; }
+.err-btn { background:#dc2626; color:white; border:none; border-radius:14px; padding:13px 36px; font-size:14px; font-weight:800; cursor:pointer; }
+
+/* ══ SCENE ══ */
+#scene-wrap {
+  position:fixed; top:94px; left:0; right:0; bottom:238px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+/* Blue ESD mat base */
+#esd-mat {
+  position:absolute; inset:0;
+  background: linear-gradient(160deg, #0e2a4a 0%, #0a1e38 40%, #071426 100%);
+}
+/* ESD mat grid pattern */
+#esd-mat::before {
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(30,100,200,.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,100,200,.12) 1px, transparent 1px);
+  background-size:32px 32px;
+}
+/* ESD mat subtle logo watermark */
+#esd-mat::after {
+  content:'ESD PROTECTED AREA';
+  position:absolute; bottom:12px; right:16px;
+  font-size:9px; letter-spacing:.12em; color:rgba(30,100,200,.25);
+  font-family:monospace; font-weight:700;
+}
+
+#scene-inner {
+  position:relative; z-index:2;
+  width:100%; max-width:560px; height:100%;
+  display:flex; align-items:center; justify-content:center;
+}
+#workbench {
+  position:relative; width:100%; height:100%;
+  max-width:560px; max-height:360px;
+}
+
+.comp { position:absolute; user-select:none; transition:filter .3s, transform .2s; }
+.clickable { cursor:pointer; }
+.clickable:hover { filter:brightness(1.2); }
+.clickable:active { transform:scale(.96); }
+
+/* ══ TOOL TRAY ══ */
+#tool-tray { position:fixed; left:0; right:0; z-index:30; display:flex; justify-content:center; padding:0 16px; bottom:242px; }
+#tray-inner { background:rgba(10,22,40,.97); border:1px solid #1e3a5f; border-radius:18px; padding:10px 16px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 40px rgba(0,0,0,.6); }
+.tray-lbl { display:flex; flex-direction:column; padding-right:4px; }
+.tray-lbl span { font-size:10px; color:#475569; font-family:monospace; letter-spacing:.08em; }
+.tray-lbl small { font-size:9px; color:#f59e0b; margin-top:2px; }
+.tool-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 14px; border-radius:13px; border:none; cursor:pointer; transition:all .15s; background:#1e3a5f; color:white; min-width:64px; }
+.tool-btn:active { transform:scale(.92); }
+.tool-btn.sel { background:#2563eb; box-shadow:0 4px 20px rgba(37,99,235,.45); transform:scale(1.06); }
+.tool-btn .ti { font-size:22px; line-height:1; }
+.tool-btn .tl { font-size:11px; font-weight:700; }
+.tool-btn .td { font-size:9px; color:rgba(255,255,255,.4); }
+.tool-btn.sel .td { color:rgba(255,255,255,.65); }
+#drag-hint { display:flex; flex-direction:column; align-items:center; gap:2px; padding:0 6px; }
+#drag-hint .arr { font-size:14px; color:#60a5fa; animation:bounce .9s infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+#drag-hint small { font-size:10px; color:#60a5fa; font-weight:700; white-space:nowrap; }
+
+/* ══ TUTORIAL SHEET ══ */
+#tutorial { position:fixed; bottom:0; left:0; right:0; z-index:30; background:rgba(8,15,30,.98); border-top:1px solid #1e3a5f; border-radius:22px 22px 0 0; box-shadow:0 -12px 50px rgba(0,0,0,.7); backdrop-filter:blur(16px); }
+#prog-wrap { height:4px; background:#1e3a5f; border-radius:22px 22px 0 0; overflow:hidden; }
+#prog-bar { height:100%; width:0%; background:linear-gradient(90deg,#f59e0b,#ef4444); transition:width .8s cubic-bezier(.4,0,.2,1); }
+#tut-body { padding:14px 16px 26px; }
+#live-readings { display:flex; background:#0d1f38; border-radius:14px; overflow:hidden; margin-bottom:10px; border:1px solid #1e3a5f; }
+.rdg { flex:1; text-align:center; padding:9px 6px; }
+.rdg-div { width:1px; background:#1e3a5f; align-self:stretch; }
+.rdg p { font-family:monospace; }
+.rdg p:first-child { font-size:9px; color:#475569; letter-spacing:.08em; }
+.rdg p:last-child { font-size:15px; font-weight:800; margin-top:3px; }
+.rdg.v p:last-child { color:#fbbf24; }
+.rdg.c p:last-child { color:#60a5fa; }
+.rdg.p p:last-child { color:#fb923c; }
+#tut-step-img { width:100%; height:80px; border-radius:12px; overflow:hidden; margin-bottom:10px; position:relative; border:1px solid #1e3a5f; }
+#step-scene-svg { width:100%; height:100%; }
+#tut-title { font-size:16px; font-weight:800; color:white; margin-bottom:5px; }
+#tut-inst { font-size:13px; color:#94a3b8; line-height:1.55; margin-bottom:8px; }
+#tut-safety { display:flex; align-items:flex-start; gap:8px; padding:8px 12px; border-radius:11px; background:rgba(120,53,15,.3); border:1px solid rgba(217,119,6,.35); margin-bottom:10px; }
+#tut-safety .si { color:#fbbf24; font-size:13px; margin-top:1px; flex-shrink:0; }
+#tut-safety p { color:#fcd34d; font-size:12px; line-height:1.45; }
+#tut-action { width:100%; padding:14px; border-radius:15px; border:none; background:#2563eb; color:white; font-size:14px; font-weight:800; cursor:pointer; transition:all .15s; box-shadow:0 4px 24px rgba(37,99,235,.35); letter-spacing:.02em; }
+#tut-action:hover { background:#1d4ed8; }
+#tut-action:active { background:#1e40af; transform:scale(.98); }
+
+/* ══ END REPORT ══ */
+#end-rpt { position:fixed; inset:0; z-index:70; background:rgba(2,8,20,.97); display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
+#end-rpt.show { display:flex; }
+.e-trophy { font-size:72px; margin-bottom:16px; animation:trophyPop .8s cubic-bezier(.34,1.56,.64,1); }
+@keyframes trophyPop { from{transform:scale(0) rotate(-90deg)} to{transform:scale(1) rotate(0)} }
+.e-title { font-size:26px; font-weight:900; color:#fbbf24; }
+.e-sub { font-size:14px; color:#475569; margin:6px 0 28px; }
+.e-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:320px; margin-bottom:28px; }
+.e-card { background:#0d1f38; border-radius:16px; padding:16px 10px; border:1px solid #1e3a5f; }
+.e-card .ev { font-size:24px; font-weight:900; font-family:monospace; }
+.e-card .el { font-size:10px; color:#475569; margin-top:5px; letter-spacing:.06em; }
+.e-card.g .ev{color:#fbbf24} .e-card.b .ev{color:#60a5fa} .e-card.gr .ev{color:#4ade80} .e-card.r .ev{color:#f87171}
+.e-restart { padding:14px 44px; border-radius:16px; border:none; background:#2563eb; color:white; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 4px 28px rgba(37,99,235,.45); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="topbar-row">
+    <div class="logo"><div class="pulse-dot"></div><span class="logo-text">CapLab</span></div>
+    <div class="topbar-right">
+      <div id="state-badge">IDLE</div>
+      <div id="voltage-badge">450V</div>
+    </div>
+  </div>
+  <div class="methods">
+    <button class="method-btn active" data-m="tool">🔌 Discharge Probe</button>
+    <button class="method-btn" data-m="resistor">🟫 Resistor</button>
+    <button class="method-btn" data-m="screwdriver">🔧 Screwdriver</button>
+    <button class="method-btn" data-m="bulb">💡 Light Bulb</button>
+  </div>
+</div>
+
+<!-- SCORE HUD -->
+<div id="score-hud">
+  <div id="score-val">1000</div>
+  <div id="score-lbl">SCORE</div>
+  <div id="timer-val">0:00</div>
+</div>
+
+<!-- COACH BUBBLE -->
+<div id="coach-bubble">
+  <button id="coach-x">✕</button>
+  <div class="coach-sev" id="csev">INFO</div>
+  <div class="coach-msg" id="cmsg"></div>
+  <div class="coach-hint" id="chint"></div>
+  <div class="coach-pts" id="cpts"></div>
+</div>
+
+<!-- ERROR OVERLAY -->
+<div id="err-overlay">
+  <div class="err-card">
+    <div class="err-icon">⚠️</div>
+    <div class="err-title" id="etitle">Safety Violation</div>
+    <div class="err-msg" id="emsg"></div>
+    <div class="err-hint" id="ehint"></div>
+    <button class="err-btn" id="edismiss">Acknowledge</button>
+  </div>
+</div>
+
+<!-- SCENE — ESD mat + workbench -->
+<div id="scene-wrap">
+  <div id="esd-mat"></div>
+  <div id="scene-inner">
+    <div id="workbench">
+
+      <!-- ═══ MAIN SCENE SVG ═══ -->
+      <svg id="main-svg" viewBox="0 0 560 340" width="100%" height="100%"
+           style="position:absolute;inset:0;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+
+          <!-- Capacitor gradients — RED industrial cap -->
+          <linearGradient id="capBodyG" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#3d0000"/>
+            <stop offset="12%"  stop-color="#7f1d1d"/>
+            <stop offset="30%"  stop-color="#dc2626"/>
+            <stop offset="50%"  stop-color="#ef4444"/>
+            <stop offset="70%"  stop-color="#dc2626"/>
+            <stop offset="88%"  stop-color="#7f1d1d"/>
+            <stop offset="100%" stop-color="#3d0000"/>
+          </linearGradient>
+          <linearGradient id="capTopG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#9ca3af"/>
+            <stop offset="100%" stop-color="#374151"/>
+          </linearGradient>
+          <linearGradient id="capShineG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(255,255,255,0.14)"/>
+            <stop offset="60%" stop-color="rgba(255,255,255,0)"/>
+          </linearGradient>
+          <radialGradient id="capGlowG" cx="50%" cy="50%">
+            <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35" id="glowC0"/>
+            <stop offset="100%" stop-color="#ef4444" stop-opacity="0" id="glowC1"/>
+          </radialGradient>
+
+          <!-- PCB gradient -->
+          <linearGradient id="pcbG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#064e3b"/>
+            <stop offset="100%" stop-color="#022c22"/>
+          </linearGradient>
+
+          <!-- Multimeter gradients -->
+          <linearGradient id="mmBodyG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1f2937"/>
+            <stop offset="100%" stop-color="#111827"/>
+          </linearGradient>
+
+          <!-- Power supply unit -->
+          <linearGradient id="psuG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#374151"/>
+            <stop offset="100%" stop-color="#1f2937"/>
+          </linearGradient>
+
+          <!-- Gloved hand skin -->
+          <linearGradient id="gloveG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1a3d6e"/>
+            <stop offset="100%" stop-color="#0e2548"/>
+          </linearGradient>
+
+          <!-- Discharge probe -->
+          <linearGradient id="probeG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4b5563"/>
+            <stop offset="100%" stop-color="#1f2937"/>
+          </linearGradient>
+          <linearGradient id="resistorBandG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#d97706"/>
+            <stop offset="100%" stop-color="#92400e"/>
+          </linearGradient>
+
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="2" dy="4" stdDeviation="6" flood-color="rgba(0,0,0,0.5)"/>
+          </filter>
+          <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="10" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-amber" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="8" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- ─── BACKGROUND: Workbench surface ─── -->
+        <rect width="560" height="340" fill="none"/>
+
+        <!-- ─── PSU CHASSIS (opened unit, back wall) ─── -->
+        <g id="psu-chassis">
+          <!-- Main enclosure -->
+          <rect x="60" y="30" width="360" height="200" rx="8" fill="url(#psuG)" stroke="#4b5563" stroke-width="1.5" filter="url(#shadow)"/>
+          <!-- Inner wall detail -->
+          <rect x="70" y="40" width="340" height="180" rx="4" fill="#111827" stroke="#374151" stroke-width="1"/>
+          <!-- Fan grille (top-left) -->
+          <g opacity="0.5">
+            <circle cx="110" cy="80" r="22" fill="none" stroke="#374151" stroke-width="1.5"/>
+            <circle cx="110" cy="80" r="16" fill="none" stroke="#374151" stroke-width="1"/>
+            <line x1="88" y1="80" x2="132" y2="80" stroke="#374151" stroke-width="1"/>
+            <line x1="110" y1="58" x2="110" y2="102" stroke="#374151" stroke-width="1"/>
+            <line x1="94" y1="64" x2="126" y2="96" stroke="#374151" stroke-width="0.8"/>
+            <line x1="126" y1="64" x2="94" y2="96" stroke="#374151" stroke-width="0.8"/>
+          </g>
+          <!-- Transformer coil (right) -->
+          <ellipse cx="355" cy="120" rx="38" ry="38" fill="#1a1a2e" stroke="#312e81" stroke-width="1.5" opacity="0.8"/>
+          <ellipse cx="355" cy="120" rx="28" ry="28" fill="#0f0f23" stroke="#312e81" stroke-width="1"/>
+          <ellipse cx="355" cy="120" rx="18" ry="18" fill="#1e1e3a" stroke="#4338ca" stroke-width="1"/>
+          <!-- Heat sink fins -->
+          <g opacity="0.6">
+            <rect x="390" y="50" width="4" height="160" fill="#374151"/>
+            <rect x="397" y="50" width="4" height="160" fill="#374151"/>
+            <rect x="404" y="50" width="4" height="160" fill="#374151"/>
+            <rect x="411" y="50" width="4" height="160" fill="#374151"/>
+          </g>
+          <!-- PSU label -->
+          <text x="185" y="215" text-anchor="middle" font-size="8" fill="#374151" font-family="monospace" letter-spacing="2">INDUSTRIAL POWER SUPPLY — 450VDC 5A</text>
+        </g>
+
+        <!-- ─── PCB BOARD ─── -->
+        <g id="pcb">
+          <rect x="120" y="75" width="220" height="150" rx="5" fill="url(#pcbG)" stroke="#047857" stroke-width="1.2" filter="url(#shadow)"/>
+          <!-- PCB traces -->
+          <g stroke="#065f46" stroke-width="1" fill="none" opacity="0.7">
+            <line x1="140" y1="120" x2="200" y2="120"/>
+            <line x1="200" y1="120" x2="200" y2="160"/>
+            <line x1="140" y1="160" x2="200" y2="160"/>
+            <line x1="270" y1="100" x2="310" y2="100"/>
+            <line x1="310" y1="100" x2="310" y2="180"/>
+            <line x1="270" y1="180" x2="310" y2="180"/>
+            <line x1="165" y1="85" x2="165" y2="105"/>
+            <line x1="240" y1="190" x2="280" y2="190"/>
+          </g>
+          <!-- Small PCB components -->
+          <!-- Resistors on PCB -->
+          <rect x="138" y="116" width="26" height="8" rx="3" fill="#92400e"/>
+          <rect x="138" y="156" width="26" height="8" rx="3" fill="#7c3aed"/>
+          <!-- Small capacitors on PCB -->
+          <ellipse cx="165" cy="95" rx="6" ry="8" fill="#1d4ed8"/>
+          <rect x="162" y="83" width="2" height="6" fill="#94a3b8"/>
+          <rect x="166" y="83" width="2" height="6" fill="#94a3b8"/>
+          <!-- Chip IC -->
+          <rect x="250" y="115" width="30" height="20" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="265" y="128" text-anchor="middle" font-size="5" fill="#64748b" font-family="monospace">IC1</text>
+          <!-- PCB label -->
+          <text x="230" y="220" text-anchor="middle" font-size="7" fill="#064e3b" font-family="monospace" opacity="0.6">PCB REV 2.1</text>
+        </g>
+
+        <!-- ─── MAIN CAPACITOR (large, red, 450V) ─── -->
+        <g id="capacitor" filter="url(#shadow)">
+          <!-- Glow halo -->
+          <ellipse id="cap-halo" cx="230" cy="145" rx="50" ry="70" fill="url(#capGlowG)" opacity="0.8"/>
+          <!-- Body cylinder -->
+          <rect x="195" y="78" width="70" height="130" rx="10" fill="url(#capBodyG)"/>
+          <!-- Band rings (tactile grip rings) -->
+          <rect x="195" y="100" width="70" height="4" fill="rgba(0,0,0,0.25)" rx="1"/>
+          <rect x="195" y="118" width="70" height="4" fill="rgba(0,0,0,0.25)" rx="1"/>
+          <rect x="195" y="136" width="70" height="4" fill="rgba(0,0,0,0.25)" rx="1"/>
+          <rect x="195" y="154" width="70" height="4" fill="rgba(0,0,0,0.25)" rx="1"/>
+          <rect x="195" y="172" width="70" height="4" fill="rgba(0,0,0,0.25)" rx="1"/>
+          <!-- Polarity negative stripe -->
+          <rect x="195" y="78" width="18" height="130" rx="10" fill="rgba(0,0,0,0.35)"/>
+          <text x="204" y="128" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.4)" font-family="monospace">−</text>
+          <text x="204" y="148" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.4)" font-family="monospace">−</text>
+          <text x="204" y="168" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.4)" font-family="monospace">−</text>
+          <!-- Body shine -->
+          <rect x="195" y="78" width="70" height="130" rx="10" fill="url(#capShineG)"/>
+          <!-- Label text on body -->
+          <text x="238" y="122" text-anchor="middle" font-size="9" font-weight="700" fill="rgba(255,255,255,0.7)" font-family="sans-serif">450V</text>
+          <text x="238" y="135" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.55)" font-family="sans-serif">1000µF</text>
+          <!-- Danger label -->
+          <text x="238" y="152" text-anchor="middle" font-size="6.5" fill="rgba(255,200,0,0.8)" font-family="monospace">⚡DANGER</text>
+          <!-- Live voltage readout on cap -->
+          <text id="cap-v" x="238" y="168" text-anchor="middle" font-size="9" font-weight="800" fill="#fbbf24" font-family="monospace">450V</text>
+          <!-- Top aluminum disc -->
+          <ellipse cx="230" cy="78" rx="35" ry="11" fill="url(#capTopG)"/>
+          <ellipse cx="230" cy="78" rx="35" ry="11" fill="none" stroke="#6b7280" stroke-width="1"/>
+          <!-- Vent cross on top -->
+          <line x1="220" y1="72" x2="220" y2="84" stroke="rgba(0,0,0,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="214" y1="78" x2="246" y2="78" stroke="rgba(0,0,0,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Bottom disc -->
+          <ellipse cx="230" cy="208" rx="35" ry="11" fill="#0a1628"/>
+          <ellipse cx="230" cy="208" rx="35" ry="11" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+          <!-- Terminal leads -->
+          <rect id="lead-pos" x="240" y="58" width="9" height="22" rx="2.5" fill="#9ca3af" stroke="#6b7280" stroke-width="0.5"/>
+          <rect id="lead-neg" x="213" y="58" width="9" height="22" rx="2.5" fill="#9ca3af" stroke="#6b7280" stroke-width="0.5"/>
+
+          <!-- TERMINAL RINGS (interactive) -->
+          <g id="ring-pos" class="clickable" style="cursor:pointer">
+            <!-- Outer pulse ring -->
+            <circle cx="244" cy="56" r="14" fill="rgba(249,115,22,0.12)" stroke="#ea580c" stroke-width="2" id="rp-outer"/>
+            <circle cx="244" cy="56" r="14" fill="none" stroke="#fb923c" stroke-width="1" opacity="0.5" id="rp-pulse">
+              <animate attributeName="r" values="14;20;14" dur="2s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <text x="244" y="61" text-anchor="middle" font-size="11" font-weight="800" fill="#fb923c" font-family="monospace">+</text>
+          </g>
+
+          <g id="ring-neg" class="clickable" style="cursor:pointer">
+            <circle cx="217" cy="56" r="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2" id="rn-outer"/>
+            <circle cx="217" cy="56" r="14" fill="none" stroke="#60a5fa" stroke-width="1" opacity="0.5" id="rn-pulse">
+              <animate attributeName="r" values="14;20;14" dur="2.4s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0;0.5" dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <text x="217" y="61" text-anchor="middle" font-size="11" font-weight="800" fill="#60a5fa" font-family="monospace">−</text>
+          </g>
+        </g>
+
+        <!-- ─── POWER SWITCH (left side of PSU) ─── -->
+        <g id="power-sw" class="clickable" filter="url(#shadow)" style="cursor:pointer">
+          <rect x="75" y="130" width="42" height="72" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+          <!-- Rocker -->
+          <rect id="sw-knob" x="80" y="134" width="32" height="30" rx="5" fill="#dc2626" stroke="#991b1b" stroke-width="1"/>
+          <text id="sw-label" x="96" y="153" text-anchor="middle" font-size="8" font-weight="800" fill="white" font-family="monospace">ON</text>
+          <!-- Status LED -->
+          <circle id="sw-led" cx="96" cy="182" r="5" fill="#ef4444"/>
+          <circle cx="96" cy="182" r="5" fill="#ef4444" opacity="0.5" id="sw-led-pulse">
+            <animate attributeName="r" values="5;8;5" dur="1.4s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.5;0;0.5" dur="1.4s" repeatCount="indefinite"/>
+          </circle>
+          <text x="96" y="196" text-anchor="middle" font-size="6" fill="#6b7280" font-family="monospace">MAINS</text>
+        </g>
+
+        <!-- ─── DIGITAL MULTIMETER (right side, on mat) ─── -->
+        <g id="multimeter" filter="url(#shadow)">
+          <!-- Body -->
+          <rect x="420" y="80" width="118" height="190" rx="12" fill="url(#mmBodyG)" stroke="#374151" stroke-width="1.5"/>
+          <!-- Brand stripe -->
+          <rect x="420" y="80" width="118" height="16" rx="12" fill="#374151"/>
+          <rect x="420" y="88" width="118" height="8" fill="#374151"/>
+          <text x="479" y="91" text-anchor="middle" font-size="7" fill="#9ca3af" font-family="monospace" letter-spacing="2">FLUKE</text>
+          <!-- LCD display -->
+          <rect x="430" y="102" width="98" height="56" rx="6" fill="#0a1a0a" stroke="#1a4a1a" stroke-width="1"/>
+          <rect x="432" y="104" width="94" height="52" rx="4" fill="#0d200d"/>
+          <!-- Display mode label -->
+          <text x="446" y="118" font-size="7" fill="#1a6b1a" font-family="monospace" letter-spacing="1">DC VOLT</text>
+          <!-- Main reading -->
+          <text id="mm-read" x="516" y="146" text-anchor="end" font-size="28" font-weight="900" fill="#4ade80" font-family="monospace">450</text>
+          <text x="524" y="148" font-size="11" font-weight="700" fill="#22863a" font-family="monospace">.0</text>
+          <!-- Unit -->
+          <text x="522" y="132" font-size="8" fill="#22863a" font-family="monospace">V DC</text>
+          <!-- Secondary display -->
+          <text x="435" y="148" font-size="8" fill="#1a6b1a" font-family="monospace">AUTO</text>
+          <!-- Rotary dial -->
+          <circle cx="479" cy="202" r="30" fill="#111827" stroke="#374151" stroke-width="2"/>
+          <circle cx="479" cy="202" r="22" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+          <!-- Dial positions -->
+          <text x="479" y="180" text-anchor="middle" font-size="6" fill="#f59e0b" font-family="monospace">V~</text>
+          <text x="499" y="188" text-anchor="middle" font-size="6" fill="#f59e0b" font-family="monospace">mA</text>
+          <text x="503" y="206" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="monospace">Ω</text>
+          <text x="479" y="226" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="monospace">CONT</text>
+          <text x="456" y="206" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="monospace">CAP</text>
+          <!-- Dial pointer (set to V DC) -->
+          <line x1="479" y1="202" x2="479" y2="180" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="479" cy="202" r="4" fill="#dc2626"/>
+          <!-- Input jacks -->
+          <circle cx="453" cy="244" r="5" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+          <circle cx="469" cy="244" r="5" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+          <circle cx="485" cy="244" r="5" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+          <circle cx="501" cy="244" r="5" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+          <text x="453" y="258" text-anchor="middle" font-size="5" fill="#475569" font-family="monospace">COM</text>
+          <text x="485" y="258" text-anchor="middle" font-size="5" fill="#475569" font-family="monospace">VΩ</text>
+        </g>
+
+        <!-- ─── TEST LEADS (hidden by default, shown when measuring) ─── -->
+        <g id="test-leads" opacity="0" style="transition:opacity .5s">
+          <!-- Red lead cable -->
+          <path d="M 485 244 Q 410 240 360 120 Q 340 90 244 70" stroke="#dc2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Black lead cable -->
+          <path d="M 453 244 Q 380 250 320 200 Q 290 180 217 70" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Lead tips at capacitor terminals -->
+          <circle cx="244" cy="56" r="6" fill="#dc2626" stroke="#b91c1c" stroke-width="1"/>
+          <circle cx="217" cy="56" r="6" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+        </g>
+
+        <!-- ─── DISCHARGE PROBE TOOL ─── -->
+        <g id="discharge-probe" opacity="0" style="transition:opacity .5s">
+          <!-- Handle body -->
+          <rect x="340" y="240" width="110" height="36" rx="10" fill="#1f2937" stroke="#4b5563" stroke-width="1.5" filter="url(#shadow)"/>
+          <!-- Grip texture -->
+          <rect x="340" y="242" width="110" height="12" rx="8" fill="rgba(255,255,255,0.04)"/>
+          <!-- Built-in resistor housing (bulky, visible) -->
+          <rect x="380" y="245" width="40" height="22" rx="6" fill="url(#resistorBandG)" stroke="#78350f" stroke-width="1"/>
+          <text x="400" y="259" text-anchor="middle" font-size="6" font-weight="700" fill="rgba(255,255,255,0.8)" font-family="monospace">10kΩ HV</text>
+          <!-- Safety WARNING label on probe -->
+          <text x="355" y="258" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="monospace">HV</text>
+          <!-- Probe cable going to capacitor -->
+          <path id="probe-cable" d="M 340 258 Q 310 220 290 170 Q 270 130 244 70" stroke="#374151" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0"/>
+          <!-- Ground clip cable -->
+          <path id="ground-cable" d="M 450 258 Q 430 280 80 250 Q 75 248 75 230" stroke="#1a3a1a" stroke-width="3" fill="none" stroke-linecap="round" opacity="0"/>
+          <!-- Ground clip on chassis -->
+          <g id="ground-clip" opacity="0">
+            <rect x="66" y="220" width="18" height="8" rx="2" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+            <text x="75" y="228" text-anchor="middle" font-size="5" fill="#9ca3af" font-family="monospace">GND</text>
+          </g>
+        </g>
+
+        <!-- ─── GLOVED HANDS (visible during connection steps) ─── -->
+        <g id="hands" opacity="0" style="transition:opacity .6s">
+          <!-- Right hand (probe hand) -->
+          <g id="hand-right">
+            <!-- Glove body -->
+            <ellipse cx="320" cy="255" rx="28" ry="18" fill="url(#gloveG)" stroke="#0e2548" stroke-width="1.5" transform="rotate(-20,320,255)"/>
+            <!-- Fingers -->
+            <ellipse cx="305" cy="242" rx="9" ry="6" fill="url(#gloveG)" stroke="#0e2548" stroke-width="1" transform="rotate(-30,305,242)"/>
+            <ellipse cx="316" cy="238" rx="9" ry="5.5" fill="url(#gloveG)" stroke="#0e2548" stroke-width="1" transform="rotate(-15,316,238)"/>
+            <ellipse cx="327" cy="238" rx="9" ry="5.5" fill="url(#gloveG)" stroke="#0e2548" stroke-width="1" transform="rotate(5,327,238)"/>
+            <ellipse cx="337" cy="242" rx="8" ry="5" fill="url(#gloveG)" stroke="#0e2548" stroke-width="1" transform="rotate(20,337,242)"/>
+            <!-- Glove cuff -->
+            <rect x="295" y="262" width="50" height="14" rx="6" fill="#0a1e38" stroke="#0e2548" stroke-width="1"/>
+          </g>
+        </g>
+
+        <!-- ─── ARC FLASH (screwdriver method) ─── -->
+        <g id="arc-flash" opacity="0" style="pointer-events:none; transition:opacity .3s">
+          <radialGradient id="arcRG" cx="50%" cy="50%">
+            <stop offset="0%" stop-color="white" stop-opacity="1"/>
+            <stop offset="30%" stop-color="#ffcc00" stop-opacity="0.9"/>
+            <stop offset="70%" stop-color="#ff4400" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#ff2200" stop-opacity="0"/>
+          </radialGradient>
+          <circle cx="230" cy="56" r="28" fill="url(#arcRG)">
+            <animate attributeName="r" values="20;32;22;30;20" dur="0.12s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.9;0.6;1;0.7;0.9" dur="0.12s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="230" cy="56" r="8" fill="white">
+            <animate attributeName="r" values="6;10;7;11;6" dur="0.12s" repeatCount="indefinite"/>
+          </circle>
+          <line x1="230" y1="56" x2="230" y2="22" stroke="#ffdd00" stroke-width="2"/>
+          <line x1="230" y1="56" x2="258" y2="36" stroke="#ff8800" stroke-width="1.5"/>
+          <line x1="230" y1="56" x2="202" y2="36" stroke="#ff8800" stroke-width="1.5"/>
+          <line x1="230" y1="56" x2="262" y2="62" stroke="#ffcc00" stroke-width="1"/>
+          <line x1="230" y1="56" x2="198" y2="62" stroke="#ffcc00" stroke-width="1"/>
+        </g>
+
+        <!-- ─── WIRE CONNECTIONS (both connected) ─── -->
+        <g id="wire-group" opacity="0" style="transition:opacity .4s">
+          <path d="M 244 56 Q 320 30 380 190" stroke="#dc2626" stroke-width="3.5" fill="none" stroke-linecap="round" filter="url(#glow-red)" opacity="0.8"/>
+          <path d="M 217 56 Q 160 30 100 190" stroke="#374151" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.8"/>
+          <!-- Particles on positive wire -->
+          <circle r="4" fill="#fbbf24" opacity="0">
+            <animateMotion dur="1.1s" repeatCount="indefinite" path="M 244 56 Q 320 30 380 190"/>
+            <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="3" fill="#fbbf24" opacity="0">
+            <animateMotion dur="1.1s" begin="0.37s" repeatCount="indefinite" path="M 244 56 Q 320 30 380 190"/>
+            <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" begin="0.37s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+
+        <!-- ─── STEP INDICATOR BANNER (top of scene) ─── -->
+        <g id="step-banner">
+          <rect x="160" y="16" width="245" height="20" rx="6" fill="rgba(8,15,30,0.8)" stroke="#1e3a5f" stroke-width="1"/>
+          <text id="step-txt" x="282" y="29" text-anchor="middle" font-size="9" fill="#93c5fd" font-family="monospace" letter-spacing="1">STEP 1 — IDENTIFY TARGET CAPACITOR</text>
+        </g>
+
+        <!-- ─── GROUNDING STRAP indicator (always visible) ─── -->
+        <text x="430" y="30" font-size="7" fill="#374151" font-family="monospace">⏚ ESD WRIST STRAP</text>
+        <line x1="480" y1="28" x2="535" y2="28" stroke="#374151" stroke-width="0.8" stroke-dasharray="3,2"/>
+
+      </svg>
+
+    </div><!-- /workbench -->
+  </div>
+</div>
+
+<!-- TOOL TRAY -->
+<div id="tool-tray" style="display:none">
+  <div id="tray-inner">
+    <div class="tray-lbl">
+      <span>TOOLS</span>
+      <small id="tray-sub" style="display:none">measure first</small>
+    </div>
+    <div id="tools-container" style="display:flex;gap:8px"></div>
+    <div id="drag-hint" style="display:none">
+      <div class="arr">↑</div>
+      <small>Tap to connect</small>
+    </div>
+  </div>
+</div>
+
+<!-- TUTORIAL SHEET -->
+<div id="tutorial">
+  <div id="prog-wrap"><div id="prog-bar"></div></div>
+  <div id="tut-body">
+    <div id="live-readings" style="display:none">
+      <div class="rdg v"><p>VOLTAGE</p><p id="rv">450.0V</p></div>
+      <div class="rdg-div"></div>
+      <div class="rdg c"><p>CURRENT</p><p id="rc">0.00mA</p></div>
+      <div class="rdg-div"></div>
+      <div class="rdg p"><p>POWER</p><p id="rp">0.000W</p></div>
+    </div>
+    <div id="tut-title">Step 1: Identify the Target Capacitor</div>
+    <div id="tut-inst">Sarah identifies the large red 450V 1000µF electrolytic capacitor in the opened industrial power supply. The digital multimeter is positioned nearby ready to verify safe discharge.</div>
+    <div id="tut-safety" style="display:none"><span class="si">⚠</span><p id="tut-safety-txt"></p></div>
+    <button id="tut-action" style="display:none"></button>
+  </div>
+</div>
+
+<!-- END REPORT -->
+<div id="end-rpt">
+  <div class="e-trophy">🏆</div>
+  <div class="e-title">Discharge Complete!</div>
+  <div class="e-sub">Capacitor safely at 0V — procedure followed correctly</div>
+  <div class="e-grid">
+    <div class="e-card g"><div class="ev" id="escore">—</div><div class="el">FINAL SCORE</div></div>
+    <div class="e-card b"><div class="ev" id="etime">—</div><div class="el">TIME</div></div>
+    <div class="e-card gr"><div class="ev" id="emistakes">—</div><div class="el">VIOLATIONS</div></div>
+    <div class="e-card r"><div class="ev" id="egrade">—</div><div class="el">GRADE</div></div>
+  </div>
+  <button class="e-restart" id="erestart">Try Again</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE MACHINE
+// ══════════════════════════════════════════
+const S = {
+  IDLE:'IDLE', PPE_CHECK:'PPE_CHECK', POWER_ON:'POWER_ON', POWER_OFF:'POWER_OFF',
+  MEASURING:'MEASURING', TOOL_READY:'TOOL_READY', TOOL_GRABBED:'TOOL_GRABBED',
+  TERMINAL_A:'TERMINAL_A', BOTH_CONNECTED:'BOTH_CONNECTED',
+  VERIFYING:'VERIFYING', COMPLETE:'COMPLETE'
+}
+const ORDER = Object.values(S)
+const idx = s => ORDER.indexOf(s)
+
+// RC discharge params per method
+const METHOD_RC = {
+  tool:       {R:1000,  C:0.001, ts:1.0,   V0:450, label:'Discharge Probe'},
+  resistor:   {R:10000, C:0.001, ts:1.0,   V0:450, label:'10kΩ Resistor'},
+  screwdriver:{R:0.01,  C:0.001, ts:1e-4,  V0:450, label:'Screwdriver'},
+  bulb:       {R:960,   C:0.001, ts:1.0,   V0:450, label:'Light Bulb'},
+}
+const METHOD_TOOLS = {
+  tool:       [{id:'discharge_tool', icon:'🔌', label:'Probe',      desc:'HV rated'}],
+  resistor:   [{id:'resistor_10k',   icon:'🟫', label:'10kΩ',       desc:'Slow/safe'}],
+  screwdriver:[{id:'screwdriver',    icon:'🔧', label:'Screwdriver', desc:'<50V ONLY'}],
+  bulb:       [{id:'bulb_60w',       icon:'💡', label:'60W Bulb',    desc:'Visual'}],
+}
+
+const RULES = {
+  ERR_POWER_ON:{
+    messages:['Stop! Mains is still LIVE. Disconnect power before touching any component.',
+              '2nd violation: Live power + capacitor = lethal arc flash risk.'],
+    hints:['Tap the red MAINS switch on the left panel.'],
+    penalty:150, severity:'critical'
+  },
+  ERR_SCREWDRIVER_HV:{
+    messages:['Screwdriver on 450V will cause a welder-like arc flash! Use a proper discharge probe.',
+              '2nd: Arc flash at this voltage causes severe burns, eye damage, and explosion.'],
+    hints:['Switch method to Discharge Probe (HV-rated resistor tool).'],
+    penalty:250, severity:'critical'
+  },
+}
+const SUCCESS = {
+  POWER_OFF:{msg:'Power disconnected. Wait 30 seconds, then measure residual voltage.',pts:20},
+  MEASURING:{msg:'Good. Always measure before selecting a discharge tool.',pts:10},
+  TOOL_READY:{msg:'Discharge probe selected. Connect ground clip to chassis first.',pts:15},
+  TERMINAL_A:{msg:'First terminal connected. Now connect the second to complete the circuit.',pts:20},
+  BOTH_CONNECTED:{msg:'Circuit closed. Energy dissipating through the internal resistor.',pts:25},
+  COMPLETE:{msg:'Capacitor fully discharged — 0V confirmed. Safe to desolder.',pts:150},
+}
+
+// ── app state ──────────────────────────────
+let st = fresh()
+function fresh() {
+  return {
+    ms:S.IDLE, method:'tool',
+    ppeConfirmed:false, powerOn:true, selectedTool:null,
+    score:1000, mistakes:0, mistakesPer:{},
+    startTime:null, elapsed:0,
+    voltage:450, current:0, power:0,
+    discharging:false, complete:false,
+    coachTimer:null,
+  }
+}
+
+// ── transitions ──────────────────────────
+const TRANS = {
+  IDLE:          {CONFIRM_PPE:S.PPE_CHECK},
+  PPE_CHECK:     {CONFIRM_PPE:()=>st.ppeConfirmed?S.POWER_ON:null},
+  POWER_ON:      {POWER_OFF_ACT:S.POWER_OFF},
+  POWER_OFF:     {START_MEASURE:S.MEASURING},
+  MEASURING:     {MEASURE_DONE:S.TOOL_READY},
+  TOOL_READY:    {SELECT_TOOL:S.TOOL_READY, GRAB_TOOL:S.TOOL_GRABBED},
+  TOOL_GRABBED:  {SNAP_A:S.TERMINAL_A},
+  TERMINAL_A:    {SNAP_B:S.BOTH_CONNECTED},
+  BOTH_CONNECTED:{DISCHARGE_DONE:S.VERIFYING},
+  VERIFYING:     {VERIFY_SAFE:S.COMPLETE},
+}
+
+function dispatch(action) {
+  const map = TRANS[st.ms]; if(!map||!(action in map)) return false
+  const res = typeof map[action]==='function'?map[action]():map[action]
+  if(!res) return false
+  const prev = st.ms; st.ms = res; onTransition(prev, res); return true
+}
+
+function onTransition(prev, next) {
+  if(!st.startTime && prev===S.IDLE) st.startTime = performance.now()
+  if(next===S.BOTH_CONNECTED){ st.discharging=true; st.complete=false }
+  if(next===S.COMPLETE){ st.elapsed=(performance.now()-st.startTime)/1000; showEnd() }
+  const sr=SUCCESS[next]; if(sr) setTimeout(()=>{ addScore(sr.pts); showCoach({text:sr.msg,sev:'info',pts:sr.pts}) },350)
+  updateUI()
+}
+
+// ── discharge physics ───────────────────
+function tickDisch(wallDt) {
+  if(!st.discharging||st.complete) return
+  const {R,C,ts} = METHOD_RC[st.method]
+  const dt = wallDt*ts
+  st.voltage = st.voltage * Math.exp(-dt/(R*C))
+  st.current = st.voltage/R
+  st.power   = st.current*st.current*R
+  if(st.voltage<=0.05){ st.voltage=0; st.current=0; st.power=0; st.discharging=false; st.complete=true; dispatch('DISCHARGE_DONE') }
+}
+
+// ── scoring ─────────────────────────────
+function addScore(p){ st.score=Math.min(9999,st.score+p) }
+function deductScore(p,c){ st.score=Math.max(0,st.score-p); st.mistakes++; st.mistakesPer[c]=(st.mistakesPer[c]||0)+1 }
+
+// ── violations ──────────────────────────
+function triggerViolation(code) {
+  const r=RULES[code]; if(!r) return
+  const n=st.mistakesPer[code]||0; deductScore(r.penalty,code)
+  const msg=r.messages[Math.min(n,r.messages.length-1)]
+  const hint=r.hints[Math.min(n,r.hints.length-1)]
+  if(r.severity==='critical') showError(msg,hint)
+  else showCoach({text:msg,hint,sev:r.severity,pts:-r.penalty})
+}
+
+// ── coach ────────────────────────────────
+function showCoach({text,hint='',sev='info',pts=0}){
+  const el=document.getElementById('coach-bubble')
+  const lab={info:'✓ CORRECT',tip:'💡 TIP',warning:'⚠ WARNING',critical:'⛔ CRITICAL'}
+  document.getElementById('csev').textContent=lab[sev]||'INFO'
+  document.getElementById('cmsg').textContent=text
+  document.getElementById('chint').textContent=hint
+  document.getElementById('cpts').textContent=pts?(pts>0?`+${pts} pts`:`${pts} pts`):''
+  el.className=sev; clearTimeout(st.coachTimer)
+  st.coachTimer=setTimeout(()=>{ el.className='' }, sev==='critical'?7000:3800)
+}
+document.getElementById('coach-x').onclick=()=>{ document.getElementById('coach-bubble').className='' }
+
+// ── error overlay ────────────────────────
+function showError(msg,hint=''){
+  document.getElementById('emsg').textContent=msg
+  document.getElementById('ehint').textContent=hint
+  document.getElementById('err-overlay').classList.add('show')
+}
+document.getElementById('edismiss').onclick=()=>document.getElementById('err-overlay').classList.remove('show')
+
+// ── end report ───────────────────────────
+function showEnd(){
+  const t=st.elapsed, fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`
+  const grade=st.mistakes===0?'S':st.mistakes<=2?'A':st.mistakes<=5?'B':'C'
+  document.getElementById('escore').textContent=st.score
+  document.getElementById('etime').textContent=fmt(t)
+  document.getElementById('emistakes').textContent=st.mistakes
+  document.getElementById('egrade').textContent=grade
+  setTimeout(()=>document.getElementById('end-rpt').classList.add('show'),700)
+}
+document.getElementById('erestart').onclick=()=>{
+  document.getElementById('end-rpt').classList.remove('show')
+  const m=st.method; st=fresh(); st.method=m; updateUI()
+}
+
+// ══════════════════════════════════════════
+//  GUIDE CONTENT — mirrors the 4 Gemini steps
+// ══════════════════════════════════════════
+function getGuide(){
+  const ms=st.ms, T=8, pct=n=>Math.round(n/T*100)
+  const tn={tool:'Discharge Probe',resistor:'10kΩ Resistor',screwdriver:'Screwdriver',bulb:'Light Bulb'}[st.method]
+  switch(ms){
+    case S.IDLE: return {
+      title:'Step 1: Preparation & Target Capacitor',
+      inst:`Sarah identifies the large red 450V 1000µF electrolytic capacitor in the opened industrial power supply. The digital multimeter is positioned nearby on the ESD mat.`,
+      action:'Begin Training',fn:()=>dispatch('CONFIRM_PPE'), progress:pct(0), step:'STEP 1 — IDENTIFY TARGET CAPACITOR'
+    }
+    case S.PPE_CHECK:
+    case S.POWER_ON:
+      if(!st.ppeConfirmed) return {
+        title:'Confirm PPE & Grounding',
+        inst:'Verify insulated gloves and safety glasses are on. Ensure your ESD wrist strap is grounded before approaching a charged capacitor.',
+        safety:'450V capacitor can deliver lethal discharge even unplugged.',
+        action:'PPE Confirmed ✓', fn:()=>{ st.ppeConfirmed=true; dispatch('CONFIRM_PPE') },
+        progress:pct(1), step:'PPE & GROUNDING CHECK'
+      }
+      return {
+        title:'Step 2: Disconnect Mains Power',
+        inst:`Tap the red MAINS rocker switch on the PSU panel. Wait at least 30 seconds after disconnecting — internal capacitors can retain dangerous charge.`,
+        safety:'NEVER discharge a capacitor with power still connected.',
+        progress:pct(2), step:'STEP 2 — DISCONNECT MAINS POWER'
+      }
+    case S.POWER_OFF: return {
+      title:'Step 3: Measure Initial Voltage',
+      inst:`Attach the multimeter probes across the capacitor terminals. Record the initial voltage reading — this confirms the capacitor is charged and shows how much energy must be safely dissipated.`,
+      safety:'Reading 450V — never touch bare leads or component leads at this voltage.',
+      action:'Measure: 450V →',fn:()=>{ dispatch('START_MEASURE'); setTimeout(()=>dispatch('MEASURE_DONE'),900) },
+      progress:pct(3), step:'STEP 3 — MEASURE INITIAL VOLTAGE'
+    }
+    case S.MEASURING: return {
+      title:'Measuring…',inst:'Multimeter probes connected to terminals. Reading voltage…',
+      progress:pct(3), step:'STEP 3 — MEASURING VOLTAGE'
+    }
+    case S.TOOL_READY: return {
+      title:`Step 2: Connect the ${tn}`,
+      inst:st.method==='screwdriver'
+        ?'WARNING: A screwdriver creates a near-short circuit on 450V — this causes a welder-like arc flash. A proper discharge probe with internal resistor is required.'
+        :`Select the ${tn} from the tray. First connect the black ground clip to the PSU metal chassis. Then bring the probe tip to the first capacitor terminal.`,
+      safety:st.method==='screwdriver'?'A screwdriver on 450V causes explosive arc flash and severe burns.':'Connect ground clip before touching any capacitor terminal.',
+      progress:pct(4), step:'STEP 2 — CONNECT DISCHARGE TOOL'
+    }
+    case S.TOOL_GRABBED: return {
+      title:'Connect + Terminal',
+      inst:'With ground clip secured to chassis, bring the probe tip to the positive (+) orange ring on the capacitor. The internal resistor limits current — no dangerous arc.',
+      progress:pct(5), step:'STEP 2 — FIRST TERMINAL CONTACT'
+    }
+    case S.TERMINAL_A: return {
+      title:'Connect − Terminal',
+      inst:'Positive terminal is discharging. Now connect to the negative (−) blue ring to complete the resistive circuit. Voltage will begin dropping.',
+      progress:pct(6), step:'STEP 2 — SECOND TERMINAL CONTACT'
+    }
+    case S.BOTH_CONNECTED:return {
+      title:'Discharging — Energy Dissipating as Heat',
+      inst:`Capacitor energy is being safely converted to heat through the ${tn}'s internal resistor. Watch the voltage reading drop on the multimeter display.`,
+      progress:pct(7), step:'STEP 2 — DISCHARGE IN PROGRESS'
+    }
+    case S.VERIFYING: return {
+      title:'Step 3: Verify 0V — Confirm Safe State',
+      inst:'Remove the discharge probe. Attach multimeter probes directly to the capacitor terminals. Display must read 0.00V before any further handling.',
+      safety:'Even a small residual charge can cause a shock. Verify 0V every time.',
+      action:'Verify: 0.00V ✓', fn:()=>dispatch('VERIFY_SAFE'),
+      progress:95, step:'STEP 3 — VERIFY ZERO VOLTAGE'
+    }
+    case S.COMPLETE: return {
+      title:'Step 4: Safe to Desolder',
+      inst:'The 450V capacitor is fully discharged and confirmed at 0V. Sarah can now safely desolder it using a soldering iron and desoldering pump — no shock risk.',
+      progress:100, step:'STEP 4 — SAFE HANDLING & MAINTENANCE'
+    }
+    default: return {title:'Follow the steps',inst:'Complete each step in sequence.',progress:0,step:''}
+  }
+}
+
+// ══════════════════════════════════════════
+//  UI UPDATE
+// ══════════════════════════════════════════
+function updateUI(){
+  const ms=st.ms, guide=getGuide()
+  const isDisch=ms===S.BOTH_CONNECTED
+  const isComplete=ms===S.COMPLETE
+  const V0=METHOD_RC[st.method].V0
+
+  // Badges
+  document.getElementById('state-badge').textContent=ms
+  const vb=document.getElementById('voltage-badge')
+  vb.textContent=isComplete?'✓ SAFE':`${st.voltage.toFixed(0)}V`
+  vb.className=isComplete?'safe':''
+
+  // Tutorial content
+  document.getElementById('prog-bar').style.width=guide.progress+'%'
+  document.getElementById('tut-title').textContent=guide.title
+  document.getElementById('tut-inst').textContent=guide.inst
+  const safeEl=document.getElementById('tut-safety')
+  if(guide.safety){ safeEl.style.display='flex'; document.getElementById('tut-safety-txt').textContent=guide.safety }
+  else safeEl.style.display='none'
+  const actEl=document.getElementById('tut-action')
+  if(guide.action&&guide.fn&&!isComplete){ actEl.style.display='block'; actEl.textContent=guide.action; actEl.onclick=guide.fn }
+  else actEl.style.display='none'
+  document.getElementById('live-readings').style.display=isDisch?'flex':'none'
+
+  // Step banner in scene
+  if(guide.step) document.getElementById('step-txt').textContent=guide.step
+
+  // Tool tray
+  const trayOk=idx(ms)>=idx(S.POWER_OFF)&&idx(ms)<idx(S.BOTH_CONNECTED)
+  document.getElementById('tool-tray').style.display=trayOk?'flex':'none'
+  if(trayOk) buildToolTray()
+
+  updateScene()
+}
+
+function buildToolTray(){
+  const ms=st.ms, enabled=idx(ms)>=idx(S.TOOL_READY)
+  const c=document.getElementById('tools-container'); c.innerHTML=''
+  document.getElementById('tray-sub').style.display=enabled?'none':'block'
+  ;(METHOD_TOOLS[st.method]||[]).forEach(t=>{
+    const btn=document.createElement('button')
+    btn.className='tool-btn'+(st.selectedTool===t.id?' sel':'')
+    btn.innerHTML=`<span class="ti">${t.icon}</span><span class="tl">${t.label}</span><span class="td">${t.desc}</span>`
+    btn.disabled=!enabled
+    btn.onclick=()=>{
+      if(!enabled) return
+      if(st.method==='screwdriver'){ triggerViolation('ERR_SCREWDRIVER_HV'); return }
+      st.selectedTool=t.id; dispatch('SELECT_TOOL'); updateUI()
+    }
+    c.appendChild(btn)
+  })
+  document.getElementById('drag-hint').style.display=st.selectedTool&&enabled?'flex':'none'
+}
+
+// ── scene element visibility per state ──
+function updateScene(){
+  const ms=st.ms
+  const powerOn=st.powerOn
+  const termA=idx(ms)>=idx(S.TERMINAL_A)
+  const bothConn=idx(ms)>=idx(S.BOTH_CONNECTED)
+  const isDisch=ms===S.BOTH_CONNECTED
+  const isVerify=ms===S.VERIFYING
+  const isComplete=ms===S.COMPLETE
+  const isMeasuring=ms===S.MEASURING||ms===S.POWER_OFF
+
+  // Power switch
+  const knob=document.getElementById('sw-knob')
+  const swLed=document.getElementById('sw-led')
+  const swLedPulse=document.getElementById('sw-led-pulse')
+  const swLabel=document.getElementById('sw-label')
+  if(powerOn){
+    knob.setAttribute('fill','#dc2626'); swLed.setAttribute('fill','#ef4444')
+    swLedPulse.setAttribute('fill','#ef4444'); swLabel.textContent='ON'
+  } else {
+    knob.setAttribute('fill','#16a34a'); swLed.setAttribute('fill','#22c55e')
+    swLedPulse.setAttribute('fill','#22c55e'); swLabel.textContent='OFF'
+  }
+
+  // Capacitor voltage glow
+  const V0=METHOD_RC[st.method].V0
+  const ratio=st.voltage/V0
+  const halo=document.getElementById('cap-halo')
+  if(halo){
+    halo.setAttribute('opacity',(ratio*0.85).toFixed(3))
+    halo.setAttribute('fill',`rgba(${Math.round(239*ratio+30*(1-ratio))},${Math.round(68*ratio)},${Math.round(68*ratio)},0.35)`)
+  }
+  const capV=document.getElementById('cap-v')
+  if(capV){ capV.textContent=st.voltage.toFixed(0)+'V'; capV.setAttribute('fill',ratio>0.05?'#fbbf24':'#374151') }
+
+  // Multimeter reading
+  const mmR=document.getElementById('mm-read')
+  if(mmR) mmR.textContent=st.voltage.toFixed(1)
+
+  // Test leads (measuring + verifying + complete)
+  const leadsVisible=isMeasuring||isVerify||isComplete
+  document.getElementById('test-leads').style.opacity=leadsVisible?'1':'0'
+
+  // Discharge probe (tool_grabbed through connected)
+  const probeVisible=idx(ms)>=idx(S.TOOL_GRABBED)&&!isVerify&&!isComplete
+  document.getElementById('discharge-probe').style.opacity=probeVisible?'1':'0'
+  document.getElementById('probe-cable').style.opacity=termA?'1':'0'
+  document.getElementById('ground-cable').style.opacity=idx(ms)>=idx(S.TOOL_GRABBED)?'1':'0'
+  document.getElementById('ground-clip').style.opacity=idx(ms)>=idx(S.TOOL_GRABBED)?'1':'0'
+
+  // Hands (visible when grabbing/connecting)
+  document.getElementById('hands').style.opacity=(idx(ms)>=idx(S.TOOL_GRABBED)&&!isComplete)?'1':'0'
+
+  // Wires (both connected)
+  document.getElementById('wire-group').style.opacity=bothConn?'1':'0'
+
+  // Arc flash (screwdriver only)
+  document.getElementById('arc-flash').style.opacity=(isDisch&&st.method==='screwdriver')?'1':'0'
+
+  // Terminal rings - highlight state
+  const rpOuter=document.getElementById('rp-outer'); const rnOuter=document.getElementById('rn-outer')
+  if(termA){ rpOuter.setAttribute('fill','rgba(249,115,22,0.5)') }
+  else { rpOuter.setAttribute('fill','rgba(249,115,22,0.12)') }
+  if(bothConn){ rnOuter.setAttribute('fill','rgba(59,130,246,0.5)') }
+  else { rnOuter.setAttribute('fill','rgba(59,130,246,0.12)') }
+}
+
+// ══════════════════════════════════════════
+//  CLICK HANDLERS
+// ══════════════════════════════════════════
+document.getElementById('power-sw').onclick=()=>{
+  if(st.ms===S.POWER_ON||(st.ms===S.PPE_CHECK&&st.ppeConfirmed)){
+    st.powerOn=false; dispatch('POWER_OFF_ACT')
+  }
+}
+document.getElementById('ring-pos').onclick=()=>{
+  if(st.ms===S.TOOL_GRABBED){ dispatch('SNAP_A'); updateUI() }
+}
+document.getElementById('ring-neg').onclick=()=>{
+  if(st.ms===S.TERMINAL_A){ dispatch('SNAP_B'); updateUI() }
+}
+
+// Method buttons
+document.querySelectorAll('.method-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    const m=btn.dataset.m; st.method=m
+    document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active')
+    const sm=st.method; st=fresh(); st.method=sm; updateUI()
+  }
+})
+
+// ══════════════════════════════════════════
+//  ANIMATION LOOP
+// ══════════════════════════════════════════
+let last=performance.now()
+function loop(now){
+  const dt=Math.min((now-last)/1000,.05); last=now
+  const wasD=st.discharging; tickDisch(dt)
+
+  // Timer
+  if(st.startTime&&st.ms!==S.COMPLETE){
+    st.elapsed=(now-st.startTime)/1000
+    const mm=String(Math.floor(st.elapsed/60)).padStart(2,'0'), ss=String(Math.floor(st.elapsed%60)).padStart(2,'0')
+    document.getElementById('timer-val').textContent=`${mm}:${ss}`
+  }
+
+  document.getElementById('score-val').textContent=st.score
+
+  if(st.ms!==S.COMPLETE){
+    document.getElementById('voltage-badge').textContent=`${st.voltage.toFixed(0)}V`
+  }
+
+  if(st.discharging||(wasD&&!st.discharging)){
+    document.getElementById('rv').textContent=st.voltage.toFixed(1)+'V'
+    document.getElementById('rc').textContent=(st.current*1000).toFixed(2)+'mA'
+    document.getElementById('rp').textContent=st.power.toFixed(3)+'W'
+    // live cap voltage
+    const cv=document.getElementById('cap-v'); if(cv) cv.textContent=st.voltage.toFixed(0)+'V'
+    // live multimeter
+    const mr=document.getElementById('mm-read'); if(mr) mr.textContent=st.voltage.toFixed(1)
+    // live glow
+    const V0=METHOD_RC[st.method].V0, ratio=st.voltage/V0
+    const h=document.getElementById('cap-halo'); if(h) h.setAttribute('opacity',(ratio*0.85).toFixed(3))
+  }
+
+  requestAnimationFrame(loop)
+}
+
+updateUI()
+requestAnimationFrame(loop)
+</script>
+</body>
+</html>
