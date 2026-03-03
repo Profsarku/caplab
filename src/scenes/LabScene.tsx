@@ -61,123 +61,118 @@ function ArcFlash() {
   )
 }
 
-// ── Interaction arrows — context-sensitive labels that guide the user ─────
+// ── Interaction arrows — long directional arrows pointing at interactive objects ─
+function Arrow({ color, label, direction = 'down' }: {
+  color: string
+  label: string
+  direction?: 'down' | 'left' | 'right'
+}) {
+  const shaftLen = 52
+  const isVert = direction === 'down'
+
+  const containerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: direction === 'down' ? 'column' : 'row',
+    alignItems: 'center',
+    gap: 0,
+    pointerEvents: 'none',
+  }
+  const chip: React.CSSProperties = {
+    background: 'rgba(2,6,23,0.93)',
+    border: `2px solid ${color}`,
+    borderRadius: 8,
+    padding: '5px 11px',
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: 800,
+    fontFamily: 'monospace',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.02em',
+    boxShadow: `0 0 12px ${color}55`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  }
+  const dot: React.CSSProperties = {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: color,
+    flexShrink: 0,
+    animation: 'labPulse 0.9s ease-in-out infinite',
+  }
+  // Long shaft
+  const shaft: React.CSSProperties = isVert
+    ? { width: 3, height: shaftLen, background: color, borderRadius: 2, flexShrink: 0 }
+    : { height: 3, width: shaftLen, background: color, borderRadius: 2, flexShrink: 0 }
+  // Arrowhead triangle
+  const head: React.CSSProperties = direction === 'down'
+    ? { width: 0, height: 0,
+        borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
+        borderTop: `14px solid ${color}` }
+    : direction === 'left'
+    ? { width: 0, height: 0,
+        borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
+        borderRight: `14px solid ${color}` }
+    : { width: 0, height: 0,
+        borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
+        borderLeft: `14px solid ${color}` }
+
+  return (
+    <div style={containerStyle}>
+      <style>{`@keyframes labPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}`}</style>
+      <div style={chip}><span style={dot}/>{label}</div>
+      <div style={shaft} />
+      <div style={head} />
+    </div>
+  )
+}
+
 function InteractionArrows() {
   const machineState = useMachineStore(s => s.machineState)
 
-  const labelStyle: React.CSSProperties = {
-    background: 'rgba(15,23,42,0.92)',
-    border: '1px solid #475569',
-    borderRadius: '8px',
-    padding: '4px 10px',
-    color: '#f1f5f9',
-    fontSize: '11px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    whiteSpace: 'nowrap',
-    pointerEvents: 'none',
-    lineHeight: 1.4,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px',
-  }
-  const arrowDown: React.CSSProperties = {
-    position: 'absolute',
-    bottom: '-8px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: 0,
-    height: 0,
-    borderLeft: '6px solid transparent',
-    borderRight: '6px solid transparent',
-    borderTop: '8px solid #475569',
-  }
-  const pulse: React.CSSProperties = {
-    display: 'inline-block',
-    width: 7,
-    height: 7,
-    borderRadius: '50%',
-    background: '#facc15',
-    animation: 'labPulse 1s ease-in-out infinite',
-    flexShrink: 0,
-  }
-
-  // Power switch label — show when power is ON and we're past IDLE
-  const showPower = isAtLeast(machineState, LabState.POWER_ON) && machineState === LabState.POWER_ON
-
-  // Capacitor label — always useful early on
-  const showCap = isAtLeast(machineState, LabState.POWER_OFF) && !isAtLeast(machineState, LabState.BOTH_CONNECTED)
-
-  // Tool label — show when at TOOL_READY
-  const showTool = machineState === LabState.TOOL_READY || machineState === LabState.TOOL_GRABBED
-
-  // Terminal labels — show when tool is grabbed
-  const showTerminals = machineState === LabState.TOOL_GRABBED || machineState === LabState.TERMINAL_A
+  const showPower    = machineState === LabState.POWER_ON
+  const showCap      = isAtLeast(machineState, LabState.POWER_OFF) && !isAtLeast(machineState, LabState.BOTH_CONNECTED)
+  const showTool     = machineState === LabState.TOOL_READY
+  const showGrab     = machineState === LabState.TOOL_GRABBED
+  const showTermA    = machineState === LabState.TOOL_GRABBED
+  const showTermB    = machineState === LabState.TERMINAL_A
 
   return (
     <>
+      {/* Power switch — arrow points down at the switch */}
       {showPower && (
-        <Html position={[-2, 1.1, 0]} center distanceFactor={4}>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <div style={{ ...labelStyle, borderColor: '#ef4444' }}>
-              <span style={{ ...pulse, background: '#ef4444' }} />
-              Tap to cut power
-            </div>
-            <div style={{ ...arrowDown, borderTopColor: '#ef4444' }} />
-          </div>
-          <style>{`@keyframes labPulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
+        <Html position={[-2, 1.8, 0]} center distanceFactor={5}>
+          <Arrow color="#ef4444" label="⚡ Tap to cut power" direction="down" />
         </Html>
       )}
 
+      {/* Capacitor — arrow points down from above */}
       {showCap && (
-        <Html position={[0, 1.6, 0]} center distanceFactor={4}>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <div style={{ ...labelStyle, borderColor: '#dc2626' }}>
-              <span style={{ ...pulse, background: '#dc2626' }} />
-              450V Capacitor — danger
-            </div>
-            <div style={{ ...arrowDown, borderTopColor: '#dc2626' }} />
-          </div>
+        <Html position={[0, 2.2, 0]} center distanceFactor={5}>
+          <Arrow color="#dc2626" label="☠ 450V Capacitor" direction="down" />
         </Html>
       )}
 
+      {/* Discharge tool — arrow points left toward the tool (tool is to the right) */}
       {showTool && (
-        <Html position={[2.2, 1.0, 0.5]} center distanceFactor={4}>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <div style={{ ...labelStyle, borderColor: '#3b82f6' }}>
-              <span style={{ ...pulse, background: '#3b82f6' }} />
-              {machineState === LabState.TOOL_READY ? 'Grab & drag to terminals' : 'Drag to + terminal'}
-            </div>
-            <div style={{ ...arrowDown, borderTopColor: '#3b82f6' }} />
-          </div>
+        <Html position={[3.6, 0.7, 0.5]} center distanceFactor={5}>
+          <Arrow color="#3b82f6" label="Grab & drag me →" direction="left" />
         </Html>
       )}
 
-      {showTerminals && (
-        <>
-          {machineState === LabState.TOOL_GRABBED && (
-            <Html position={[0.1, 1.2, 0]} center distanceFactor={4}>
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <div style={{ ...labelStyle, borderColor: '#f97316' }}>
-                  <span style={{ ...pulse, background: '#f97316' }} />
-                  (+) Drop here first
-                </div>
-                <div style={{ ...arrowDown, borderTopColor: '#f97316' }} />
-              </div>
-            </Html>
-          )}
-          {machineState === LabState.TERMINAL_A && (
-            <Html position={[-0.1, 1.2, 0]} center distanceFactor={4}>
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <div style={{ ...labelStyle, borderColor: '#60a5fa' }}>
-                  <span style={{ ...pulse, background: '#60a5fa' }} />
-                  (−) Connect here
-                </div>
-                <div style={{ ...arrowDown, borderTopColor: '#60a5fa' }} />
-              </div>
-            </Html>
-          )}
-        </>
+      {/* Tool being dragged — nudge toward + terminal */}
+      {showGrab && (
+        <Html position={[1.4, 1.6, 0]} center distanceFactor={5}>
+          <Arrow color="#f97316" label="Drop on (+) terminal" direction="down" />
+        </Html>
+      )}
+
+      {/* + terminal connected — now point at - terminal */}
+      {showTermB && (
+        <Html position={[-1.4, 1.6, 0]} center distanceFactor={5}>
+          <Arrow color="#60a5fa" label="Drop on (−) terminal" direction="down" />
+        </Html>
       )}
     </>
   )
