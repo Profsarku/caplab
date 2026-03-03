@@ -45,8 +45,8 @@ export function GrabInteraction({
 
   // ── Pointer handlers ──────────────────────────────────
   const handlePointerDown = useCallback((e: any) => {
+    e.stopPropagation()       // always block OrbitControls from stealing the event
     if (disabled || !canGrabTools) return
-    e.stopPropagation()
     isDragging.current = true
     isSnapped.current = false
     e.target.setPointerCapture?.(e.pointerId)

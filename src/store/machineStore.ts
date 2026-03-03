@@ -1,6 +1,6 @@
 // Central state machine store — drives every gate in the lab
 import { create } from 'zustand'
-import { LabState, transition } from '../state-machine/LabStateMachine'
+import { LabState, transition, isAtLeast } from '../state-machine/LabStateMachine'
 import type { LabAction, ErrorInfo, MachineContext } from '../state-machine/LabStateMachine'
 import { repairEvents } from '../events/RepairEvents'
 
@@ -66,7 +66,7 @@ export const useMachineStore = create<MachineStore>((set, get) => ({
       machineState: result.nextState,
       errorInfo: null,
       isPowerSafe: !context.isPowerConnected,
-      canGrabTools: result.nextState >= LabState.TOOL_READY && !context.isPowerConnected,
+      canGrabTools: isAtLeast(result.nextState, LabState.TOOL_READY) && !context.isPowerConnected,
       canConnectTerminals:
         result.nextState === LabState.TOOL_GRABBED ||
         result.nextState === LabState.TERMINAL_A,
@@ -108,6 +108,7 @@ export const useMachineStore = create<MachineStore>((set, get) => ({
       machineState: context.isPowerConnected ? LabState.POWER_ON : LabState.POWER_OFF,
       prevState: s.machineState,
       errorInfo: null,
+      canGrabTools: false,
     }))
   },
 

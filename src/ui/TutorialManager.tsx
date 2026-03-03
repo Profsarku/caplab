@@ -58,7 +58,7 @@ function useStepGuide(): StepGuide {
             'Before approaching the capacitor, Sarah confirms: Class 0 insulated HV gloves (1000V rated), safety glasses, and ESD wrist strap clipped to the PSU chassis ground.',
           safety: 'A 450V capacitor can deliver cardiac arrest-level current through bare skin in milliseconds.',
           action: 'PPE Confirmed ✓',
-          actionFn: () => { setPpeConfirmed(true); dispatch('CONFIRM_PPE') },
+          actionFn: () => setPpeConfirmed(true),
           progress: pct(1),
         }
       }

@@ -122,7 +122,7 @@ export function transition(
         return error('ERR_VOLTAGE_HIGH',
           `Screwdriver unsafe at ${ctx.measuredVoltage.toFixed(0)}V!`,
           'Use a bleeder resistor for voltages above 50V.')
-      if (state >= LabState.POWER_OFF)
+      if (isAtLeast(state, LabState.POWER_OFF))
         return { nextState: LabState.TOOL_READY }
       return warn('ERR_WRONG_ORDER', 'Measure voltage before selecting a tool.', 'Use the multimeter first.')
 
